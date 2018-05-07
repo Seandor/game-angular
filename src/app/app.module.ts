@@ -4,7 +4,7 @@ import { NgModule } from '@angular/core';
 
 import { AppComponent } from './app.component';
 import { G2048GameboardComponent } from './g2048-gameboard/g2048-gameboard.component';
-
+import { WindowRefService } from './window-ref.service';
 
 @NgModule({
   declarations: [
@@ -14,7 +14,9 @@ import { G2048GameboardComponent } from './g2048-gameboard/g2048-gameboard.compo
   imports: [
     BrowserModule
   ],
-  providers: [],
+  providers: [
+    WindowRefService
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

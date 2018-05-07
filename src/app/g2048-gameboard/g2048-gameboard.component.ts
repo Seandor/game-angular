@@ -1,4 +1,5 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { WindowRefService } from './../window-ref.service';
+import { Component, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 
 @Component({
   selector: 'g2048-gameboard',
@@ -17,13 +18,21 @@ export class G2048GameboardComponent implements OnInit {
   oriWidth;
   oriHeight;
 
-  constructor() { }
+  constructor(private winRef: WindowRefService) {
+    console.log('Native window obj', winRef.nativeWindow);
+   }
 
   ngOnInit() {
     this.ctx = this.canvasRef.nativeElement.getContext('2d');
+    // this.ctx.imageSmoothingEnabled = true;
     let size = { width: 4, height: 4 };
     this.setCanvasSize(size);
     this.drawBoard();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown($event) {
+    console.log('keyCode: ' + $event.keyCode);
   }
 
   drawBoard = () => {
@@ -35,7 +44,7 @@ export class G2048GameboardComponent implements OnInit {
     ctx.restore();
   };
 
-  setCanvasSize = function (size) {
+  setCanvasSize = (size) => {
     const cols = size.width;
     const rows = size.height;
 
@@ -45,17 +54,18 @@ export class G2048GameboardComponent implements OnInit {
     this.oriHeight = rows * this.TILESIZE + (rows + 1) * this.PADDING;
 
     // query the various pixel ratios
-    let devicePixelRatio = Math.ceil(window.devicePixelRatio) || 1,
-      backingStoreRatio = this.ctx.webkitBackingStorePixelRatio ||
-        this.ctx.mozBackingStorePixelRatio ||
-        this.ctx.msBackingStorePixelRatio ||
-        this.ctx.oBackingStorePixelRatio ||
-        this.ctx.backingStorePixelRatio || 1,
-      ratio = devicePixelRatio / backingStoreRatio;
+    let devicePixelRatio = Math.ceil(this.winRef.nativeWindow.devicePixelRatio) || 1;
+    // let backingStoreRatio = this.ctx.webkitBackingStorePixelRatio ||
+    //     this.ctx.mozBackingStorePixelRatio ||
+    //     this.ctx.msBackingStorePixelRatio ||
+    //     this.ctx.oBackingStorePixelRatio ||
+    //     this.ctx.backingStorePixelRatio || 1;
+    let backingStoreRatio = 1;
+    let ratio = devicePixelRatio / backingStoreRatio;
 
     canvas.width = this.oriWidth * ratio;
     canvas.height = this.oriHeight * ratio;
-    // upscale the canvas if the two ratios don't match
+    // // upscale the canvas if the two ratios don't match
     if (devicePixelRatio !== backingStoreRatio) {
       canvas.style.width = this.oriWidth + 'px';
       canvas.style.height = this.oriHeight + 'px';
