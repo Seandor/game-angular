@@ -28,11 +28,33 @@ export class G2048GameboardComponent implements OnInit {
     let size = { width: 4, height: 4 };
     this.setCanvasSize(size);
     this.drawBoard();
+
+    let tile1 = new Tile({ row: 1, col: 1 }, 2);
+    tile1.setPreviousPosition({ row: 3, col: 1});
+    this.paintTile(tile1);
   }
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown($event) {
     console.log('keyCode: ' + $event.keyCode);
+  }
+
+  paintTile (tile: Tile) {
+    let previousCanvasPosition = this.getTileCanvasPoint(tile.getPreviousPosition());
+    let currentCanvasPosition = this.getTileCanvasPoint(tile.getPosition());
+
+    // this.drawTile(previousCanvasPosition, tile);
+    this.drawTile(previousCanvasPosition, tile);
+    let previousPosition = tile.getPreviousPosition();
+    previousPosition.row -= 1;
+    tile.setPreviousPosition(previousPosition);
+
+    console.log(previousCanvasPosition);
+
+    if (previousCanvasPosition.x === currentCanvasPosition.x && previousCanvasPosition.y === currentCanvasPosition.y) {
+      return;
+    }
+    this.winRef.nativeWindow.requestAnimationFrame(() => this.paintTile(tile));
   }
 
   drawBoard () {
@@ -75,7 +97,96 @@ export class G2048GameboardComponent implements OnInit {
       // our canvas element
       this.ctx.scale(ratio, ratio);
     }
-  };
+  }
+
+  getTileCanvasPoint (position: Position) {
+    var xPos = position.col * this.TILESIZE + (position.col + 1) * this.PADDING;
+    var yPos = position.row * this.TILESIZE + (position.row + 1) * this.PADDING;
+    return {
+      x: xPos,
+      y: yPos
+    };
+  }
+
+  drawTile (position, tile) {
+    var value = tile ? tile.value : null;
+    var textPosition = {
+      x: position.x + this.TILESIZE / 2,
+      y: position.y + this.TILESIZE / 2
+    };
+    this.drawTileBackground(position, value);
+    if (value !== null) {
+      this.drawTileText(textPosition, value);
+    }
+  }
+
+  private drawTileBackground (position, value) {
+    var ctx = this.ctx;
+    var size = this.TILESIZE;
+    ctx.save();
+    // clear previous drawing add draw default color
+    ctx.clearRect(position.x, position.y, size, size);
+    ctx.fillStyle = this.BACKGROUNDCOLOR;
+    ctx.fillRect(position.x, position.y, size, size);
+
+    this.drawRoundRect(position.x, position.y, size, size, this.RADIUS);
+    ctx.fillStyle = this.getTileColor(value) ? this.getTileColor(value) : "#000";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private drawTileText (textPosition, value) {
+    var ctx = this.ctx;
+    var fillColor;
+    var tileTextSize = this.getTileTextSize(value) + "px";
+    ctx.save();
+    // need to fix the font size later
+    ctx.font = "bold " + tileTextSize + " Clear Sans";
+    ctx.fillStyle = this.getTextColor(value);
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(value, textPosition.x, textPosition.y);
+    ctx.restore();
+  }
+
+  getTileTextSize (value) {
+    var SIZEDIC = {
+      1: 54,
+      2: 48,
+      3: 40,
+      4: 35
+    };
+    return SIZEDIC[value.toString().length];
+  }
+
+  getTextColor (tileValue) {
+    var lightWhite = "#F9F6F2";
+    var brownColor = "#776E65";
+    if (tileValue === 2 || tileValue === 4) {
+      return brownColor;
+    } else {
+      return lightWhite;
+    }
+  }
+
+  getTileColor (tileValue) {
+    var COLORS = {
+      tnull: "#CDC1B4",
+      t2: "#EEE4DA",
+      t4: "#EDE0C8",
+      t8: "#F2B179",
+      t16: "#F59563",
+      t32: "#F67C5F",
+      t64: "#F65E3B",
+      t128: "#EDCF72",
+      t256: "#EDCC61",
+      t512: "#EDC850",
+      t1024: "#EDC53F",
+      t2048: "#EDC22E",
+    };
+    var value = "t" + tileValue;
+    return COLORS[value];
+  }
 
   drawRoundRect (startX, startY, width, height, radius) {
     let ctx = this.ctx;
@@ -88,7 +199,7 @@ export class G2048GameboardComponent implements OnInit {
     ctx.lineTo(startX + radius, startY + height);
     ctx.arc(startX + radius, startY + height - radius, radius, Math.PI / 2, Math.PI);
     ctx.lineTo(startX, startY + radius);
-  };
+  }
 }
 
 interface Position {
@@ -101,6 +212,7 @@ class Tile {
   private col: number;
   private value: number;
   private previousPosition: Position;
+  private mergedFrom: Position;
 
   constructor(position: Position, value: number) {
     this.row = position.row;
@@ -109,12 +221,20 @@ class Tile {
 
     // for animation
     // mergedFrom saves the other tile's position which has merged to the tile.
-    // this.previousPosition = null;
-    // this.mergedFrom = null;
+    this.previousPosition = null;
+    this.mergedFrom = null;
   }
 
   getPosition () {
     return { row: this.row, col: this.col };
+  }
+
+  getPreviousPosition () {
+    return { row: this.previousPosition.row, col: this.previousPosition.col };
+  }
+
+  setPreviousPosition (position: Position) {
+    this.previousPosition = position;
   }
 
   savePosition () {
@@ -124,7 +244,7 @@ class Tile {
   updatePostion (position) {
     this.row = position.row;
     this.col = position.col;
-  };
+  }
 
   serialize () {
     return {
@@ -134,7 +254,7 @@ class Tile {
       },
       value: this.value
     };
-  };
+  }
 }
 
 class Grid {
@@ -160,15 +280,15 @@ class Grid {
       cells[idx] = row;
     }
     return cells;
-  };
+  }
 
   getWidth () {
     return this.gridWidth;
-  };
+  }
 
   getHeight () {
     return this.gridHeight;
-  };
+  }
 
   // Given a direction vector and start cell to traverse the grid
   // return a list of tiles
@@ -196,7 +316,7 @@ class Grid {
       }
     }
     return traversal;
-  };
+  }
 
   // Find an available random cell position
   randomAvailableCells () {
@@ -204,7 +324,7 @@ class Grid {
     if (cells.length) {
       return cells[Math.floor(Math.random() * cells.length)];
     }
-  };
+  }
 
   // Return a list of available cell index
   availableCells () {
@@ -215,7 +335,7 @@ class Grid {
       }
     });
     return cells;
-  };
+  }
 
   // Return true if there is cell available
   cellsAvailable () {
@@ -226,7 +346,7 @@ class Grid {
         }
       }
     }
-  };
+  }
 
   // iteration of the grid
   eachCell (callback) {
@@ -235,11 +355,11 @@ class Grid {
         callback(row, col, this.cells[row][col]);
       }
     }
-  };
+  }
 
   setTile (tile) {
     this.cells[tile.row][tile.col] = tile;
-  };
+  }
 
   // return null if there is no tile
   getTile (position) {
@@ -248,12 +368,12 @@ class Grid {
     } else {
       return null;
     }
-  };
+  }
 
   withinBounds (position) {
     return position.row >= 0 && position.row < this.gridHeight &&
       position.col >= 0 && position.col < this.gridWidth;
-  };
+  }
 
   serialize () {
     var row, idx, jdx;
@@ -270,7 +390,7 @@ class Grid {
       height: this.gridHeight,
       cells: this.cells
     };
-  };
+  }
 }
 
 
